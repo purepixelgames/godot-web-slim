@@ -47,12 +47,21 @@ jobs:
             PROFILE_ARG="build_profile=$GITHUB_WORKSPACE/build_profile.gdbuild"
           fi
           cd godot
-          scons platform=web profile="$GITHUB_WORKSPACE/custom.py" $PROFILE_ARG -j"$(nproc)"
+          scons platform=web target=template_release threads=no \
+            profile="$GITHUB_WORKSPACE/custom.py" $PROFILE_ARG -j"$(nproc)"
 
       - name: Package and report sizes
         run: |
+          echo "Files in godot/bin:"
+          ls -la godot/bin
+          ZIP=$(ls godot/bin/godot.web.template_release*.nothreads*.zip 2>/dev/null | head -n 1)
+          if [ -z "$ZIP" ]; then
+            echo "::error::No godot.web.template_release*.nothreads*.zip in godot/bin (see list above)"
+            exit 1
+          fi
+          echo "Template: $ZIP"
           mkdir -p out
-          cp godot/bin/godot.web.template_release.wasm32.nothreads.zip out/web_nothreads_release.zip
+          cp "$ZIP" out/web_nothreads_release.zip
           mkdir -p check && cd check
           unzip -q ../out/web_nothreads_release.zip
           WASM=$(ls *.wasm | head -n 1)
@@ -60,6 +69,8 @@ jobs:
           GZ=$(gzip -9 -c "$WASM" | wc -c)
           {
             echo "## Slim web template (${{ inputs.godot_ref }})"
+            echo "Built from \`$ZIP\`"
+            echo ""
             echo "| file | bytes |"
             echo "|---|---|"
             echo "| $WASM (raw) | $RAW |"
