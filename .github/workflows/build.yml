@@ -10,6 +10,9 @@ on:
       emscripten_version:
         description: "Emscripten version (official 4.6 web builds use 4.0.20)"
         default: "4.0.20"
+      options_file:
+        description: "Build options file in this repo (e.g. custom.py or profiles/my_game.py)"
+        default: "custom.py"
 
 jobs:
   build:
@@ -42,13 +45,19 @@ jobs:
       - name: Build template_release (web, no threads)
         run: |
           source emsdk/emsdk_env.sh
+          OPTIONS="$GITHUB_WORKSPACE/${{ inputs.options_file }}"
+          if [ ! -f "$OPTIONS" ]; then
+            echo "::error::Options file not found: ${{ inputs.options_file }}"
+            exit 1
+          fi
+          echo "Options file: ${{ inputs.options_file }}"
           PROFILE_ARG=""
           if [ -f build_profile.gdbuild ]; then
             PROFILE_ARG="build_profile=$GITHUB_WORKSPACE/build_profile.gdbuild"
           fi
           cd godot
           scons platform=web target=template_release threads=no \
-            profile="$GITHUB_WORKSPACE/custom.py" $PROFILE_ARG -j"$(nproc)"
+            profile="$OPTIONS" $PROFILE_ARG -j"$(nproc)"
 
       - name: Package and report sizes
         run: |
@@ -60,6 +69,7 @@ jobs:
             exit 1
           fi
           echo "Template: $ZIP"
+          echo "OPTIONS_NAME=$(basename "${{ inputs.options_file }}" .py)" >> "$GITHUB_ENV"
           mkdir -p out
           cp "$ZIP" out/web_nothreads_release.zip
           mkdir -p check && cd check
@@ -68,7 +78,7 @@ jobs:
           RAW=$(stat -c %s "$WASM")
           GZ=$(gzip -9 -c "$WASM" | wc -c)
           {
-            echo "## Slim web template (${{ inputs.godot_ref }})"
+            echo "## Slim web template (${{ inputs.godot_ref }}, ${{ inputs.options_file }})"
             echo "Built from \`$ZIP\`"
             echo ""
             echo "| file | bytes |"
@@ -80,6 +90,6 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: web-slim-${{ inputs.godot_ref }}
+          name: web-slim-${{ inputs.godot_ref }}-${{ env.OPTIONS_NAME }}
           path: out/web_nothreads_release.zip
           if-no-files-found: error
