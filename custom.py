@@ -23,6 +23,7 @@ disable_navigation_2d = "yes"
 modules_enabled_by_default = "no"
 module_gdscript_enabled = "yes"        # all game code
 module_freetype_enabled = "yes"        # font rendering (default font)
+module_text_server_adv_enabled = "no"  # docs: always pair adv=no with fb=yes
 module_text_server_fb_enabled = "yes"  # simple text server: Latin + Cyrillic, no RTL
 module_svg_enabled = "yes"             # editor-imported SVG icons
 module_webp_enabled = "yes"            # lossless imported textures are stored as WebP
