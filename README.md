@@ -25,11 +25,13 @@ importers. For a 2D game most of that is dead weight.
 | `.github/workflows/build.yml` | the cloud build (run by hand from the Actions tab) |
 | `.github/workflows/build_template_standard_2d.yml` | own Actions entry **Build template_standard_2d** (options file fixed) |
 | `.github/workflows/build_template_bound_v2.yml` | own Actions entry **Build template_bound_v2** (options file fixed) |
+| `.github/workflows/build_template_bound_v3.yml` | own Actions entry **Build template_bound_v3** (options + build profile fixed) |
 | `custom.py` | **starter** options for a new 2D game |
 | `profiles/<game>.py` | the options for one game (one file per game) |
 | `profiles/orbital_tapper.py` | proven options for Orbital Tapper |
 | `profiles/template_standard_2d.py` | **safe general 2D template**: stock engine minus everything 3D (all 2D, GUI, text, modules kept) |
-| `profiles/template_bound_v2.py` | Bound to Defend: only the parts that game uses (untested) |
+| `profiles/template_bound_v2.py` | Bound to Defend: only the parts that game uses (wasm 27.6 MB) |
+| `profiles/template_bound_v3.py` + `.gdbuild` | Bound to Defend: v2 + lto=full + no SVG + 53 unused classes removed (untested) |
 
 The workflow:
 1. downloads the official Godot source at the tag you give (e.g. `4.6-stable`),
