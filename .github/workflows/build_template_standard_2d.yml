@@ -1,0 +1,96 @@
+name: Build template_standard_2d
+
+# Run by hand: Actions tab -> "Build template_standard_2d" -> Run workflow.
+# Options file is fixed: profiles/template_standard_2d.py
+on:
+  workflow_dispatch:
+    inputs:
+      godot_ref:
+        description: "godotengine/godot tag (must match the editor that exports)"
+        default: "4.6-stable"
+      emscripten_version:
+        description: "Emscripten version (official 4.6 web builds use 4.0.20)"
+        default: "4.0.20"
+
+env:
+  OPTIONS_FILE: profiles/template_standard_2d.py
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - name: Checkout this repo (custom.py, optional build_profile.gdbuild)
+        uses: actions/checkout@v4
+
+      - name: Checkout official Godot source
+        uses: actions/checkout@v4
+        with:
+          repository: godotengine/godot
+          ref: ${{ inputs.godot_ref }}
+          path: godot
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install SCons
+        run: python -m pip install scons
+
+      - name: Install Emscripten (official emsdk)
+        run: |
+          git clone --depth 1 https://github.com/emscripten-core/emsdk.git emsdk
+          ./emsdk/emsdk install ${{ inputs.emscripten_version }}
+          ./emsdk/emsdk activate ${{ inputs.emscripten_version }}
+
+      - name: Build template_release (web, no threads)
+        run: |
+          source emsdk/emsdk_env.sh
+          OPTIONS="$GITHUB_WORKSPACE/${{ env.OPTIONS_FILE }}"
+          if [ ! -f "$OPTIONS" ]; then
+            echo "::error::Options file not found: ${{ env.OPTIONS_FILE }}"
+            exit 1
+          fi
+          echo "Options file: ${{ env.OPTIONS_FILE }}"
+          PROFILE_ARG=""
+          if [ -f build_profile.gdbuild ]; then
+            PROFILE_ARG="build_profile=$GITHUB_WORKSPACE/build_profile.gdbuild"
+          fi
+          cd godot
+          scons platform=web target=template_release threads=no \
+            profile="$OPTIONS" $PROFILE_ARG -j"$(nproc)"
+
+      - name: Package and report sizes
+        run: |
+          echo "Files in godot/bin:"
+          ls -la godot/bin
+          ZIP=$(ls godot/bin/godot.web.template_release*.nothreads*.zip 2>/dev/null | head -n 1)
+          if [ -z "$ZIP" ]; then
+            echo "::error::No godot.web.template_release*.nothreads*.zip in godot/bin (see list above)"
+            exit 1
+          fi
+          echo "Template: $ZIP"
+          echo "OPTIONS_NAME=$(basename "${{ env.OPTIONS_FILE }}" .py)" >> "$GITHUB_ENV"
+          mkdir -p out
+          cp "$ZIP" out/web_nothreads_release.zip
+          mkdir -p check && cd check
+          unzip -q ../out/web_nothreads_release.zip
+          WASM=$(ls *.wasm | head -n 1)
+          RAW=$(stat -c %s "$WASM")
+          GZ=$(gzip -9 -c "$WASM" | wc -c)
+          {
+            echo "## Slim web template (${{ inputs.godot_ref }}, ${{ env.OPTIONS_FILE }})"
+            echo "Built from \`$ZIP\`"
+            echo ""
+            echo "| file | bytes |"
+            echo "|---|---|"
+            echo "| $WASM (raw) | $RAW |"
+            echo "| $WASM (gzip -9) | $GZ |"
+            echo "| web_nothreads_release.zip | $(stat -c %s ../out/web_nothreads_release.zip) |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-slim-${{ inputs.godot_ref }}-${{ env.OPTIONS_NAME }}
+          path: out/web_nothreads_release.zip
+          if-no-files-found: error

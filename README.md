@@ -23,6 +23,8 @@ importers. For a 2D game most of that is dead weight.
 | file | what it is |
 |---|---|
 | `.github/workflows/build.yml` | the cloud build (run by hand from the Actions tab) |
+| `.github/workflows/build_template_standard_2d.yml` | own Actions entry **Build template_standard_2d** (options file fixed) |
+| `.github/workflows/build_template_bound_v2.yml` | own Actions entry **Build template_bound_v2** (options file fixed) |
 | `custom.py` | **starter** options for a new 2D game |
 | `profiles/<game>.py` | the options for one game (one file per game) |
 | `profiles/orbital_tapper.py` | proven options for Orbital Tapper |
