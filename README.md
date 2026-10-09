@@ -26,6 +26,8 @@ importers. For a 2D game most of that is dead weight.
 | `custom.py` | **starter** options for a new 2D game |
 | `profiles/<game>.py` | the options for one game (one file per game) |
 | `profiles/orbital_tapper.py` | proven options for Orbital Tapper |
+| `profiles/template_standard_2d.py` | **safe general 2D template**: stock engine minus everything 3D (all 2D, GUI, text, modules kept) |
+| `profiles/template_bound_v2.py` | Bound to Defend: only the parts that game uses (untested) |
 
 The workflow:
 1. downloads the official Godot source at the tag you give (e.g. `4.6-stable`),
