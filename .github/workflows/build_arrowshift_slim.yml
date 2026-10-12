@@ -1,0 +1,101 @@
+name: Build arrowshift_slim
+
+# ArrowShift:Classic is a 3D game: this build keeps 3D ON (see profiles/arrowshift_slim.py).
+# Runs by hand (Actions tab -> "Build arrowshift_slim" -> Run workflow) and also by itself
+# when this file or profiles/arrowshift_slim.py is pushed to main (4.6-stable, Emscripten 4.0.20).
+# Options file is fixed: profiles/arrowshift_slim.py. No class build profile (.gdbuild).
+on:
+  workflow_dispatch:
+    inputs:
+      godot_ref:
+        description: "godotengine/godot tag (must match the editor that exports)"
+        default: "4.6-stable"
+      emscripten_version:
+        description: "Emscripten version (official 4.6 web builds use 4.0.20)"
+        default: "4.0.20"
+  push:
+    branches: [main]
+    paths:
+      - profiles/arrowshift_slim.py
+      - .github/workflows/build_arrowshift_slim.yml
+
+env:
+  OPTIONS_FILE: profiles/arrowshift_slim.py
+  GODOT_REF: ${{ inputs.godot_ref || '4.6-stable' }}
+  EMSCRIPTEN_VERSION: ${{ inputs.emscripten_version || '4.0.20' }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - name: Checkout this repo (options file)
+        uses: actions/checkout@v4
+
+      - name: Checkout official Godot source
+        uses: actions/checkout@v4
+        with:
+          repository: godotengine/godot
+          ref: ${{ env.GODOT_REF }}
+          path: godot
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install SCons
+        run: python -m pip install scons
+
+      - name: Install Emscripten (official emsdk)
+        run: |
+          git clone --depth 1 https://github.com/emscripten-core/emsdk.git emsdk
+          ./emsdk/emsdk install ${{ env.EMSCRIPTEN_VERSION }}
+          ./emsdk/emsdk activate ${{ env.EMSCRIPTEN_VERSION }}
+
+      - name: Build template_release (web, no threads, 3D kept)
+        run: |
+          source emsdk/emsdk_env.sh
+          OPTIONS="$GITHUB_WORKSPACE/${{ env.OPTIONS_FILE }}"
+          if [ ! -f "$OPTIONS" ]; then
+            echo "::error::Options file not found: ${{ env.OPTIONS_FILE }}"
+            exit 1
+          fi
+          echo "Options file: ${{ env.OPTIONS_FILE }}"
+          cd godot
+          scons platform=web target=template_release threads=no \
+            profile="$OPTIONS" -j"$(nproc)"
+
+      - name: Package and report sizes
+        run: |
+          echo "Files in godot/bin:"
+          ls -la godot/bin
+          ZIP=$(ls godot/bin/godot.web.template_release*.nothreads*.zip 2>/dev/null | head -n 1)
+          if [ -z "$ZIP" ]; then
+            echo "::error::No godot.web.template_release*.nothreads*.zip in godot/bin (see list above)"
+            exit 1
+          fi
+          echo "Template: $ZIP"
+          echo "OPTIONS_NAME=$(basename "${{ env.OPTIONS_FILE }}" .py)" >> "$GITHUB_ENV"
+          mkdir -p out
+          cp "$ZIP" out/web_nothreads_release.zip
+          mkdir -p check && cd check
+          unzip -q ../out/web_nothreads_release.zip
+          WASM=$(ls *.wasm | head -n 1)
+          RAW=$(stat -c %s "$WASM")
+          GZ=$(gzip -9 -c "$WASM" | wc -c)
+          {
+            echo "## Slim web template (${{ env.GODOT_REF }}, ${{ env.OPTIONS_FILE }})"
+            echo "Built from \`$ZIP\`"
+            echo ""
+            echo "| file | bytes |"
+            echo "|---|---|"
+            echo "| $WASM (raw) | $RAW |"
+            echo "| $WASM (gzip -9) | $GZ |"
+            echo "| web_nothreads_release.zip | $(stat -c %s ../out/web_nothreads_release.zip) |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-slim-${{ env.GODOT_REF }}-${{ env.OPTIONS_NAME }}
+          path: out/web_nothreads_release.zip
+          if-no-files-found: error
