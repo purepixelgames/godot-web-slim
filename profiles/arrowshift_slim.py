@@ -1,4 +1,4 @@
-# ArrowShift:Classic - UNTESTED (2026-10-12). 3D GAME: 3D rendering stays ON.
+# ArrowShift:Classic - build 1 FAILED on web (deprecated=no removed an API the game uses); build 2 keeps deprecated APIs. 3D GAME: 3D rendering stays ON.
 # Run with options_file = profiles/arrowshift_slim.py. Every option exists in
 # godotengine/godot SConstruct at tag 4.6-stable; nothing in the engine is edited.
 # Built from a scan of the game's .gd/.tscn/.tres/.import files, project.godot and
@@ -12,7 +12,7 @@ optimize = "size_extra"  # 4.5+: smallest code
 lto = "thin"             # same as the official 4.6 web builds (production => thin)
 threads = "no"           # preset: variant/thread_support=false
 javascript_eval = "yes"  # Playgama bridge uses JavaScriptBridge (all modules)
-deprecated = "no"
+deprecated = "yes"      # KEEP: localization_manager.gd uses TranslationServer.get_translation_object() (deprecated in 4.6); "no" broke all text on web (2026-10-12)
 
 # KEEP 3D: the cube, camera, ArrayMesh arrows and shaders are all 3D.
 disable_3d = "no"
